@@ -1,0 +1,1284 @@
+     1                                  %include "tools.asm"
+     1                              <1> 
+     2                              <1> 	DEFAULT REL
+     3                              <1> 
+     4                              <1> 	section .text
+     5                              <1> 
+     6                              <1> do_exit:		;Call Linux sys_exit
+     7 00000000 B83C000000          <1> 	mov rax, 60
+     8 00000005 4831FF              <1> 	xor rdi, rdi
+     9 00000008 0F05                <1> 	syscall
+    10                              <1> 
+    11                              <1> input_string:		;Get string from stdin to input buffer at RSI capable of holding up to 4096 chars
+    12 0000000A B800000000          <1> 	mov rax, 0
+    13 0000000F BF00000000          <1> 	mov rdi, 0
+    14 00000014 BA00100000          <1> 	mov rdx, 4096
+    15 00000019 0F05                <1> 	syscall
+    16 0000001B C3                  <1> 	ret		;Returns length read in RAX
+    17                              <1> 
+    18                              <1> print_string:		;Print string pointed to by RSI of length RDX
+    19 0000001C E8E1000000          <1> 	call save_register_file
+    20                              <1> print_string_nosave:
+    21 00000021 B801000000          <1> 	mov rax, 1
+    22 00000026 BF01000000          <1> 	mov rdi, 1
+    23 0000002B 0F05                <1> 	syscall
+    24 0000002D E841010000          <1> 	call load_register_file
+    25 00000032 C3                  <1> 	ret
+    26                              <1> 
+    27                              <1> print_cr:		;Print a carriage return (linefeed)
+    28 00000033 B00A                <1> 	mov al, 0ah
+    29 00000035 EB04                <1> 	jmp print_char
+    30                              <1> 
+    31                              <1> print_space:
+    32 00000037 B020                <1> 	mov al, ' '
+    33 00000039 EB00                <1> 	jmp print_char
+    34                              <1> 
+    35                              <1> print_char:		;Print the character in AL
+    36 0000003B 8805(08000000)      <1> 	mov [charout], al
+    37 00000041 B801000000          <1> 	mov rax, 1
+    38 00000046 BF01000000          <1> 	mov rdi, 1
+    39 0000004B 48BE-               <1> 	mov rsi, charout
+    39 0000004D [0800000000000000]  <1>
+    40 00000055 BA01000000          <1> 	mov rdx, 1	;just print 1 character
+    41 0000005A 0F05                <1> 	syscall
+    42 0000005C C3                  <1> 	ret
+    43                              <1> 
+    44                              <1> print_embedded_cstring:
+    45 0000005D 56                  <1> 	push rsi
+    46 0000005E 488B742408          <1> 	mov rsi, [rsp+8]
+    47 00000063 E807000000          <1> 	call print_cstring
+    48 00000068 4889742408          <1> 	mov [rsp+8], rsi
+    49 0000006D 5E                  <1> 	pop rsi
+    50 0000006E C3                  <1> 	ret
+    51                              <1> 
+    52                              <1> print_cstring:
+    53 0000006F E88E000000          <1> 	call save_register_file
+    54 00000074 FC                  <1> 	cld
+    55                              <1> .0:
+    56 00000075 AC                  <1> 	lodsb		;grab character at RSI
+    57 00000076 08C0                <1> 	or al, al
+    58 00000078 7409                <1> 	jz .1
+    59 0000007A 56                  <1> 	push rsi
+    60 0000007B E8BBFFFFFF          <1> 	call print_char
+    61 00000080 5E                  <1> 	pop rsi
+    62 00000081 EBF2                <1> 	jmp .0
+    63                              <1> .1:
+    64 00000083 56                  <1> 	push rsi
+    65 00000084 E8EA000000          <1> 	call load_register_file
+    66 00000089 5E                  <1> 	pop rsi
+    67 0000008A C3                  <1> 	ret
+    68                              <1> 
+    69                              <1> print_thex:		;print ten-byte extended real as hex
+    70 0000008B 4889F0              <1> 	mov rax, rsi
+    71 0000008E 4883C009            <1> 	add rax, 9  ;point at the end
+    72 00000092 4889C6              <1> 	mov rsi, rax
+    73 00000095 FD                  <1> 	std			;set direction flag for decrement
+    74 00000096 B90A000000          <1> 	mov rcx, 10
+    75 0000009B AC                  <1> .0	lodsb
+    76 0000009C 56                  <1> 	push rsi
+    77 0000009D 51                  <1> 	push rcx
+    78 0000009E 50                  <1> 	push rax
+    79 0000009F E806000000          <1> 	call print_byte
+    80 000000A4 58                  <1> 	pop rax
+    81 000000A5 59                  <1> 	pop rcx
+    82 000000A6 5E                  <1> 	pop rsi
+    83 000000A7 E2F2                <1> 	loop .0
+    84 000000A9 C3                  <1> 	ret
+    85                              <1> 
+    86                              <1> print_byte:		;Print hex byte in AL
+    87 000000AA 6650                <1> 	push ax		;save low nibble
+    88 000000AC C0E804              <1> 	shr al, 4
+    89 000000AF E808000000          <1> 	call print_nibble
+    90 000000B4 6658                <1> 	pop ax
+    91 000000B6 E801000000          <1> 	call print_nibble
+    92 000000BB C3                  <1> 	ret
+    93                              <1> 
+    94                              <1> print_nibble:		;Print the low nibble of AL as an ASCII character
+    95 000000BC 240F                <1> 	and al, 0fh
+    96 000000BE 3C0A                <1> 	cmp al, 0ah
+    97 000000C0 7D07                <1> 	jge .0
+    98 000000C2 0C30                <1> 	or al, 30h
+    99 000000C4 E972FFFFFF          <1> 	jmp print_char
+   100 000000C9 2C0A                <1> .0	sub al, 10
+   101 000000CB 0441                <1> 	add al, 'A'
+   102 000000CD E969FFFFFF          <1> 	jmp print_char
+   103                              <1> 
+   104                              <1> print_dword:		;print the contents of EAX
+   105 000000D2 50                  <1> 	push rax
+   106 000000D3 48C1E818            <1> 	shr rax, 24
+   107 000000D7 E8CEFFFFFF          <1> 	call print_byte
+   108 000000DC 58                  <1> 	pop rax
+   109 000000DD 50                  <1> 	push rax
+   110 000000DE 48C1E810            <1> 	shr rax, 16
+   111 000000E2 E8C3FFFFFF          <1> 	call print_byte
+   112 000000E7 58                  <1> 	pop rax
+   113 000000E8 50                  <1> 	push rax
+   114 000000E9 48C1E808            <1> 	shr rax, 8
+   115 000000ED E8B8FFFFFF          <1> 	call print_byte
+   116 000000F2 58                  <1> 	pop rax
+   117 000000F3 EBB5                <1> 	jmp print_byte
+   118                              <1> 
+   119                              <1> print_qword:		;print the contents of RAX
+   120 000000F5 50                  <1> 	push rax
+   121 000000F6 48C1E820            <1> 	shr rax, 32
+   122 000000FA E8D3FFFFFF          <1> 	call print_dword
+   123 000000FF 58                  <1> 	pop rax
+   124 00000100 EBD0                <1> 	jmp print_dword
+   125                              <1> 
+   126                              <1> save_register_file:
+   127 00000102 488905(55000000)    <1> 	mov [rsava], rax
+   128 00000109 48891D(5D000000)    <1> 	mov [rsavb], rbx
+   129 00000110 48890D(65000000)    <1> 	mov [rsavc], rcx
+   130 00000117 488915(6D000000)    <1> 	mov [rsavd], rdx
+   131 0000011E 488935(75000000)    <1> 	mov [rsavsi], rsi
+   132 00000125 48893D(7D000000)    <1> 	mov [rsavdi], rdi
+   133 0000012C 48892D(85000000)    <1> 	mov [rsavbp], rbp
+   134 00000133 488925(8D000000)    <1> 	mov [rsavsp], rsp
+   135 0000013A 4C8905(95000000)    <1> 	mov [rsav8], r8
+   136 00000141 4C890D(9D000000)    <1> 	mov [rsav9], r9
+   137 00000148 4C8915(A5000000)    <1> 	mov [rsav10], r10
+   138 0000014F 4C891D(AD000000)    <1> 	mov [rsav11], r11
+   139 00000156 4C8925(B5000000)    <1> 	mov [rsav12], r12
+   140 0000015D 4C892D(BD000000)    <1> 	mov [rsav13], r13
+   141 00000164 4C8935(C5000000)    <1> 	mov [rsav14], r14
+   142 0000016B 4C893D(CD000000)    <1> 	mov [rsav15], r15
+   143 00000172 C3                  <1> 	ret
+   144                              <1> 
+   145                              <1> load_register_file:
+   146 00000173 488B05(55000000)    <1> 	mov rax, [rsava]
+   147 0000017A 488B1D(5D000000)    <1> 	mov rbx, [rsavb]
+   148 00000181 488B0D(65000000)    <1> 	mov rcx, [rsavc]
+   149 00000188 488B15(6D000000)    <1> 	mov rdx, [rsavd]
+   150 0000018F 488B35(75000000)    <1> 	mov rsi, [rsavsi]
+   151 00000196 488B3D(7D000000)    <1> 	mov rdi, [rsavdi]
+   152 0000019D 488B2D(85000000)    <1> 	mov rbp, [rsavbp]
+   153                              <1> ; note: leave rsp alone
+   154 000001A4 4C8B05(95000000)    <1> 	mov r8, [rsav8]
+   155 000001AB 4C8B0D(9D000000)    <1> 	mov r9, [rsav9]
+   156 000001B2 4C8B15(A5000000)    <1> 	mov r10, [rsav10]
+   157 000001B9 4C8B1D(AD000000)    <1> 	mov r11, [rsav11]
+   158 000001C0 4C8B25(B5000000)    <1> 	mov r12, [rsav12]
+   159 000001C7 4C8B2D(BD000000)    <1> 	mov r13, [rsav13]
+   160 000001CE 4C8B35(C5000000)    <1> 	mov r14, [rsav14]
+   161 000001D5 4C8B3D(CD000000)    <1> 	mov r15, [rsav15]
+   162 000001DC C3                  <1> 	ret
+   163                              <1> 
+   164                              <1> print_regs:
+   165 000001DD E820FFFFFF          <1> 	call save_register_file
+   166                              <1> ; conventional registers
+   167                              <1> 
+   168 000001E2 B041                <1> 	mov al, 'A'
+   169 000001E4 E852FEFFFF          <1> 	call print_char
+   170 000001E9 B058                <1> 	mov al, 'X'
+   171 000001EB E84BFEFFFF          <1> 	call print_char
+   172 000001F0 B03A                <1> 	mov al, ':'
+   173 000001F2 E844FEFFFF          <1> 	call print_char
+   174 000001F7 488B05(55000000)    <1> 	mov rax, [rsava]
+   175 000001FE E8F2FEFFFF          <1> 	call print_qword
+   176 00000203 B020                <1> 	mov al, ' '
+   177 00000205 E831FEFFFF          <1> 	call print_char
+   178                              <1> 
+   179 0000020A B042                <1> 	mov al, 'B'
+   180 0000020C E82AFEFFFF          <1> 	call print_char
+   181 00000211 B058                <1> 	mov al, 'X'
+   182 00000213 E823FEFFFF          <1> 	call print_char
+   183 00000218 B03A                <1> 	mov al, ':'
+   184 0000021A E81CFEFFFF          <1> 	call print_char
+   185 0000021F 488B05(5D000000)    <1> 	mov rax, [rsavb]
+   186 00000226 E8CAFEFFFF          <1> 	call print_qword
+   187 0000022B B020                <1> 	mov al, ' '
+   188 0000022D E809FEFFFF          <1> 	call print_char
+   189                              <1> 
+   190 00000232 B043                <1> 	mov al, 'C'
+   191 00000234 E802FEFFFF          <1> 	call print_char
+   192 00000239 B058                <1> 	mov al, 'X'
+   193 0000023B E8FBFDFFFF          <1> 	call print_char
+   194 00000240 B03A                <1> 	mov al, ':'
+   195 00000242 E8F4FDFFFF          <1> 	call print_char
+   196 00000247 488B05(65000000)    <1> 	mov rax, [rsavc]
+   197 0000024E E8A2FEFFFF          <1> 	call print_qword
+   198 00000253 B020                <1> 	mov al, ' '
+   199 00000255 E8E1FDFFFF          <1> 	call print_char
+   200                              <1> 
+   201 0000025A B044                <1> 	mov al, 'D'
+   202 0000025C E8DAFDFFFF          <1> 	call print_char
+   203 00000261 B058                <1> 	mov al, 'X'
+   204 00000263 E8D3FDFFFF          <1> 	call print_char
+   205 00000268 B03A                <1> 	mov al, ':'
+   206 0000026A E8CCFDFFFF          <1> 	call print_char
+   207 0000026F 488B05(6D000000)    <1> 	mov rax, [rsavd]
+   208 00000276 E87AFEFFFF          <1> 	call print_qword
+   209 0000027B B020                <1> 	mov al, ' '
+   210 0000027D E8B9FDFFFF          <1> 	call print_char
+   211                              <1> 
+   212 00000282 B053                <1> 	mov al, 'S'
+   213 00000284 E8B2FDFFFF          <1> 	call print_char
+   214 00000289 B049                <1> 	mov al, 'I'
+   215 0000028B E8ABFDFFFF          <1> 	call print_char
+   216 00000290 B03A                <1> 	mov al, ':'
+   217 00000292 E8A4FDFFFF          <1> 	call print_char
+   218 00000297 488B05(75000000)    <1> 	mov rax, [rsavsi]
+   219 0000029E E852FEFFFF          <1> 	call print_qword
+   220 000002A3 B020                <1> 	mov al, ' '
+   221 000002A5 E891FDFFFF          <1> 	call print_char
+   222                              <1> 
+   223 000002AA B044                <1> 	mov al, 'D'
+   224 000002AC E88AFDFFFF          <1> 	call print_char
+   225 000002B1 B049                <1> 	mov al, 'I'
+   226 000002B3 E883FDFFFF          <1> 	call print_char
+   227 000002B8 B03A                <1> 	mov al, ':'
+   228 000002BA E87CFDFFFF          <1> 	call print_char
+   229 000002BF 488B05(7D000000)    <1> 	mov rax, [rsavdi]
+   230 000002C6 E82AFEFFFF          <1> 	call print_qword
+   231 000002CB B020                <1> 	mov al, ' '
+   232 000002CD E869FDFFFF          <1> 	call print_char
+   233                              <1> 
+   234 000002D2 B042                <1> 	mov al, 'B'
+   235 000002D4 E862FDFFFF          <1> 	call print_char
+   236 000002D9 B050                <1> 	mov al, 'P'
+   237 000002DB E85BFDFFFF          <1> 	call print_char
+   238 000002E0 B03A                <1> 	mov al, ':'
+   239 000002E2 E854FDFFFF          <1> 	call print_char
+   240 000002E7 488B05(85000000)    <1> 	mov rax, [rsavbp]
+   241 000002EE E802FEFFFF          <1> 	call print_qword
+   242 000002F3 B020                <1> 	mov al, ' '
+   243 000002F5 E841FDFFFF          <1> 	call print_char
+   244                              <1> 
+   245 000002FA B053                <1> 	mov al, 'S'
+   246 000002FC E83AFDFFFF          <1> 	call print_char
+   247 00000301 B050                <1> 	mov al, 'P'
+   248 00000303 E833FDFFFF          <1> 	call print_char
+   249 00000308 B03A                <1> 	mov al, ':'
+   250 0000030A E82CFDFFFF          <1> 	call print_char
+   251 0000030F 488B05(8D000000)    <1> 	mov rax, [rsavsp]
+   252 00000316 E8DAFDFFFF          <1> 	call print_qword
+   253 0000031B B020                <1> 	mov al, ' '
+   254 0000031D E819FDFFFF          <1> 	call print_char
+   255                              <1> 
+   256 00000322 E80CFDFFFF          <1> 	call print_cr
+   257                              <1> 
+   258                              <1> ; print 8-15
+   259                              <1> 
+   260 00000327 B020                <1> 	mov al, ' '
+   261 00000329 E80DFDFFFF          <1> 	call print_char
+   262 0000032E B038                <1> 	mov al, '8'
+   263 00000330 E806FDFFFF          <1> 	call print_char
+   264 00000335 B03A                <1> 	mov al, ':'
+   265 00000337 E8FFFCFFFF          <1> 	call print_char
+   266 0000033C 488B05(95000000)    <1> 	mov rax, [rsav8]
+   267 00000343 E8ADFDFFFF          <1> 	call print_qword
+   268 00000348 B020                <1> 	mov al, ' '
+   269 0000034A E8ECFCFFFF          <1> 	call print_char
+   270                              <1> 
+   271 0000034F B020                <1> 	mov al, ' '
+   272 00000351 E8E5FCFFFF          <1> 	call print_char
+   273 00000356 B039                <1> 	mov al, '9'
+   274 00000358 E8DEFCFFFF          <1> 	call print_char
+   275 0000035D B03A                <1> 	mov al, ':'
+   276 0000035F E8D7FCFFFF          <1> 	call print_char
+   277 00000364 488B05(9D000000)    <1> 	mov rax, [rsav9]
+   278 0000036B E885FDFFFF          <1> 	call print_qword
+   279 00000370 B020                <1> 	mov al, ' '
+   280 00000372 E8C4FCFFFF          <1> 	call print_char
+   281                              <1> 
+   282 00000377 B031                <1> 	mov al, '1'
+   283 00000379 E8BDFCFFFF          <1> 	call print_char
+   284 0000037E B030                <1> 	mov al, '0'
+   285 00000380 E8B6FCFFFF          <1> 	call print_char
+   286 00000385 B03A                <1> 	mov al, ':'
+   287 00000387 E8AFFCFFFF          <1> 	call print_char
+   288 0000038C 488B05(A5000000)    <1> 	mov rax, [rsav10]
+   289 00000393 E85DFDFFFF          <1> 	call print_qword
+   290 00000398 B020                <1> 	mov al, ' '
+   291 0000039A E89CFCFFFF          <1> 	call print_char
+   292                              <1> 
+   293 0000039F B031                <1> 	mov al, '1'
+   294 000003A1 E895FCFFFF          <1> 	call print_char
+   295 000003A6 B031                <1> 	mov al, '1'
+   296 000003A8 E88EFCFFFF          <1> 	call print_char
+   297 000003AD B03A                <1> 	mov al, ':'
+   298 000003AF E887FCFFFF          <1> 	call print_char
+   299 000003B4 488B05(AD000000)    <1> 	mov rax, [rsav11]
+   300 000003BB E835FDFFFF          <1> 	call print_qword
+   301 000003C0 B020                <1> 	mov al, ' '
+   302 000003C2 E874FCFFFF          <1> 	call print_char
+   303                              <1> 
+   304 000003C7 B031                <1> 	mov al, '1'
+   305 000003C9 E86DFCFFFF          <1> 	call print_char
+   306 000003CE B032                <1> 	mov al, '2'
+   307 000003D0 E866FCFFFF          <1> 	call print_char
+   308 000003D5 B03A                <1> 	mov al, ':'
+   309 000003D7 E85FFCFFFF          <1> 	call print_char
+   310 000003DC 488B05(B5000000)    <1> 	mov rax, [rsav12]
+   311 000003E3 E80DFDFFFF          <1> 	call print_qword
+   312 000003E8 B020                <1> 	mov al, ' '
+   313 000003EA E84CFCFFFF          <1> 	call print_char
+   314                              <1> 
+   315 000003EF B031                <1> 	mov al, '1'
+   316 000003F1 E845FCFFFF          <1> 	call print_char
+   317 000003F6 B033                <1> 	mov al, '3'
+   318 000003F8 E83EFCFFFF          <1> 	call print_char
+   319 000003FD B03A                <1> 	mov al, ':'
+   320 000003FF E837FCFFFF          <1> 	call print_char
+   321 00000404 488B05(BD000000)    <1> 	mov rax, [rsav13]
+   322 0000040B E8E5FCFFFF          <1> 	call print_qword
+   323 00000410 B020                <1> 	mov al, ' '
+   324 00000412 E824FCFFFF          <1> 	call print_char
+   325                              <1> 
+   326 00000417 B031                <1> 	mov al, '1'
+   327 00000419 E81DFCFFFF          <1> 	call print_char
+   328 0000041E B034                <1> 	mov al, '4'
+   329 00000420 E816FCFFFF          <1> 	call print_char
+   330 00000425 B03A                <1> 	mov al, ':'
+   331 00000427 E80FFCFFFF          <1> 	call print_char
+   332 0000042C 488B05(C5000000)    <1> 	mov rax, [rsav14]
+   333 00000433 E8BDFCFFFF          <1> 	call print_qword
+   334 00000438 B020                <1> 	mov al, ' '
+   335 0000043A E8FCFBFFFF          <1> 	call print_char
+   336                              <1> 
+   337 0000043F B031                <1> 	mov al, '1'
+   338 00000441 E8F5FBFFFF          <1> 	call print_char
+   339 00000446 B035                <1> 	mov al, '5'
+   340 00000448 E8EEFBFFFF          <1> 	call print_char
+   341 0000044D B03A                <1> 	mov al, ':'
+   342 0000044F E8E7FBFFFF          <1> 	call print_char
+   343 00000454 488B05(CD000000)    <1> 	mov rax, [rsav15]
+   344 0000045B E895FCFFFF          <1> 	call print_qword
+   345 00000460 B020                <1> 	mov al, ' '
+   346 00000462 E8D4FBFFFF          <1> 	call print_char
+   347 00000467 E8C7FBFFFF          <1> 	call print_cr
+   348 0000046C E802FDFFFF          <1> 	call load_register_file
+   349 00000471 C3                  <1> 	ret
+   350                              <1> 
+   351                              <1> print_uint64_ascii:		;Formats unsigned 64 bit value in RAX as decimal ASCII string
+   352 00000472 BF00000000          <1> 	mov rdi, 0		;ASCII digit counter
+   353                              <1> .0:
+   354 00000477 BA00000000          <1> 	mov rdx, 0		;pad top 64 bits of RDX:RAX dividend to 0
+   355 0000047C BB0A000000          <1> 	mov rbx, 10		;Divide by 10
+   356 00000481 48F7F3              <1> 	div rbx			;Remainder is our ascii character, result gets recycled
+   357 00000484 8897[09000000]      <1> 	mov [outb+rdi],dl	;Save our unconverted value
+   358 0000048A 48FFC7              <1> 	inc rdi
+   359 0000048D 4883F800            <1> 	cmp rax, 0		;Are we at "0 remainder something" yet?
+   360 00000491 7FE4                <1> 	jg .0			;If not, cycle again and get the next digit
+   361                              <1> 
+   362 00000493 48893D(59000000)    <1> 	mov [asciilen], rdi	;stash our string length
+   363 0000049A 4889F9              <1> 	mov rcx, rdi		;Make it our counter
+   364 0000049D 48FFCF              <1> 	dec rdi			;Position it over our last character
+   365 000004A0 4889FE              <1> 	mov rsi, rdi		;Make it our source offset
+   366 000004A3 4881C6[09000000]    <1> 	add rsi, outb		;Make our offset an address pointer
+   367 000004AA 48BF-               <1> 	mov rdi, ascii		;Set up output pointer
+   367 000004AC [3100000000000000]  <1>
+   368                              <1> .1:
+   369 000004B4 FD                  <1> 	std			;Reverse our number string and make it printable
+   370 000004B5 AC                  <1> 	lodsb			;Load first byte and decrement RSI
+   371 000004B6 0C30                <1> 	or al, 30h		;Make it an ASCII character
+   372 000004B8 FC                  <1> 	cld
+   373 000004B9 AA                  <1> 	stosb			;Stash it in the ASCII buffer
+   374 000004BA E2F8                <1> 	loop .1			;Recycle until finished
+   375 000004BC C3                  <1> 	ret
+   376                              <1> 
+   377                              <1> print_uint64:			;Prints unsigned 64 bit value in RAX as decimal
+   378 000004BD E840FCFFFF          <1> 	call save_register_file
+   379                              <1> print_uint64_nosave:
+   380 000004C2 E8ABFFFFFF          <1> 	call print_uint64_ascii
+   381 000004C7 488B15(59000000)    <1> 	mov rdx, [asciilen]
+   382 000004CE 48BE-               <1> 	mov rsi, ascii
+   382 000004D0 [3100000000000000]  <1>
+   383 000004D8 E83FFBFFFF          <1> 	call print_string
+   384 000004DD E991FCFFFF          <1> 	jmp load_register_file
+   385                              <1> 
+   386                              <1> print_int64:			;Prints signed 64 bit value in RAX a decimal
+   387 000004E2 E81BFCFFFF          <1> 	call save_register_file
+   388 000004E7 480FBAE03F          <1> 	bt rax, 63		;Highest bit set?
+   389 000004EC 7206                <1> 	jc .0
+   390 000004EE E8CFFFFFFF          <1> 	call print_uint64_nosave	;No, so process it as a positive integer
+   391 000004F3 C3                  <1> 	ret
+   392                              <1> .0:
+   393 000004F4 48F7D8              <1> 	neg rax			;Two's complement
+   394 000004F7 50                  <1> 	push rax
+   395 000004F8 B02D                <1> 	mov al, '-'
+   396 000004FA E83CFBFFFF          <1> 	call print_char		;Print a negative sign
+   397 000004FF 58                  <1> 	pop rax
+   398 00000500 E8BDFFFFFF          <1> 	call print_uint64_nosave
+   399 00000505 C3                  <1> 	ret
+   400                              <1> 
+   401                              <1> print_double:				;Print double float in RAX with RDX decimal places of precision (up to 18 digits)
+   402 00000506 E8F7FBFFFF          <1> 	call save_register_file
+   403                              <1> print_double_nosave:
+   404 0000050B 488905(10000000)    <1> 	mov [pd_double], rax		;Save our double
+   405 00000512 488915(18000000)    <1> 	mov [pd_dp], rdx
+   406 00000519 49B8010000000000F0- <1> 	mov r8, 07ff0000000000001h	;Set up constants for NaN and Infinity compare
+   406 00000522 7F                  <1>
+   407 00000523 49B9FFFFFFFFFFFFFF- <1> 	mov r9, 07fffffffffffffffh
+   407 0000052C 7F                  <1>
+   408 0000052D 49BA010000000000F0- <1> 	mov r10, 0fff0000000000001h
+   408 00000536 FF                  <1>
+   409 00000537 49BB000000000000F0- <1> 	mov r11, 07ff0000000000000h	;positive infinity
+   409 00000540 7F                  <1>
+   410 00000541 49BC000000000000F0- <1> 	mov r12, 0fff0000000000000h	;negative infinity
+   410 0000054A FF                  <1>
+   411 0000054B 4C39D8              <1> 	cmp rax, r11
+   412 0000054E 0F84D3000000        <1> 	je print_posinf
+   413 00000554 4C39E0              <1> 	cmp rax, r12
+   414 00000557 0F84E0000000        <1> 	je print_neginf
+   415 0000055D 4C39D0              <1> 	cmp rax, r10
+   416 00000560 0F83ED000000        <1> 	jae print_nan			;anything bigger than fff0...1 is a NaN
+   417 00000566 4C39C0              <1> 	cmp rax, r8
+   418 00000569 7209                <1> 	jb .3				;Not a NaN
+   419 0000056B 4C39C8              <1> 	cmp rax, r9
+   420 0000056E 0F86DF000000        <1> 	jbe print_nan
+   421                              <1> .3:
+   422 00000574 4885C0              <1> 	test rax, rax			;we know at this point it's not a NaN or Inf, so check sign bit
+   423 00000577 791B                <1> 	jns .4				;positive, so proceed as normal
+   424 00000579 49B8FFFFFFFFFFFFFF- <1> 	mov r8, 07fffffffffffffffh	;Clear sign bit - similar to an abs(rax)
+   424 00000582 7F                  <1>
+   425 00000583 4C21C0              <1> 	and rax, r8
+   426 00000586 488905(10000000)    <1> 	mov [pd_double], rax		;Update it
+   427 0000058D B02D                <1> 	mov al, '-'
+   428 0000058F E8A7FAFFFF          <1> 	call print_char			;Print a negative sign
+   429                              <1> .4:
+   430 00000594 F20F1005(10000000)  <1> 	movsd xmm0, [pd_double]		;load double
+   431 0000059C F2480F2CD8          <1> 	cvttsd2si rbx, xmm0		;Get truncated integer portion
+   432 000005A1 48891D(20000000)    <1> 	mov [pd_int], rbx		;Save it
+   433 000005A8 F2480F2ACB          <1> 	cvtsi2sd xmm1, rbx		;And immediately float it
+   434 000005AD F20F5CC1            <1> 	subsd xmm0, xmm1		;Subtract it from our original double to get fractional portion
+   435 000005B1 48B8000064A7B3B6E0- <1> 	mov rax, 1000000000000000000	;One quintillion (1 followed by 18 zeros)
+   435 000005BA 0D                  <1>
+   436 000005BB F2480F2AC8          <1> 	cvtsi2sd xmm1, rax
+   437 000005C0 F20F59C1            <1> 	mulsd xmm0, xmm1		;Fractional part * 1 quintillion
+   438 000005C4 F2480F2DD8          <1> 	cvtsd2si rbx, xmm0		;Get frac
+   439 000005C9 48891D(28000000)    <1> 	mov [pd_frac], rbx		;Save it
+   440                              <1> 
+   441 000005D0 488B05(20000000)    <1> 	mov rax, [pd_int]
+   442 000005D7 E8E1FEFFFF          <1> 	call print_uint64
+   443 000005DC 488B15(18000000)    <1> 	mov rdx, [pd_dp]
+   444 000005E3 4885D2              <1> 	test rdx, rdx			;If we're not printing decimal places, fall through to exit
+   445 000005E6 7439                <1> 	jz .1
+   446 000005E8 B02E                <1> 	mov al, '.'
+   447 000005EA E84CFAFFFF          <1> 	call print_char
+   448 000005EF 488B05(28000000)    <1> 	mov rax, [pd_frac]
+   449 000005F6 E877FEFFFF          <1> 	call print_uint64_ascii
+   450 000005FB 488B15(18000000)    <1> 	mov rdx, [pd_dp]
+   451 00000602 483B15(59000000)    <1> 	cmp rdx, [asciilen]
+   452 00000609 7E07                <1> 	jle .2
+   453 0000060B 488B15(59000000)    <1> 	mov rdx, [asciilen]
+   454                              <1> .2:
+   455 00000612 48BE-               <1> 	mov rsi, ascii
+   455 00000614 [3100000000000000]  <1>
+   456 0000061C E8FBF9FFFF          <1> 	call print_string
+   457                              <1> .1:
+   458 00000621 E84DFBFFFF          <1> 	call load_register_file
+   459 00000626 C3                  <1> 	ret
+   460                              <1> 
+   461                              <1> print_posinf:
+   462 00000627 488B15(4D000000)    <1> 	mov rdx, [Inflen]
+   463 0000062E 48BE-               <1> 	mov rsi, PosInfstr
+   463 00000630 [3B00000000000000]  <1>
+   464 00000638 E9E4F9FFFF          <1> 	jmp print_string_nosave
+   465                              <1> 
+   466                              <1> print_neginf:
+   467 0000063D 488B15(4D000000)    <1> 	mov rdx, [Inflen]
+   468 00000644 48BE-               <1> 	mov rsi, NegInfstr
+   468 00000646 [4400000000000000]  <1>
+   469 0000064E E9CEF9FFFF          <1> 	jmp print_string_nosave
+   470                              <1> 
+   471                              <1> print_nan:
+   472 00000653 488B15(33000000)    <1> 	mov rdx, [NaNlen]
+   473 0000065A 48BE-               <1> 	mov rsi, NaNstr
+   473 0000065C [3000000000000000]  <1>
+   474 00000664 E9B8F9FFFF          <1> 	jmp print_string_nosave
+   475                              <1> 
+   476                              <1> print_single:				;Print the single precision float in EAX with RDX decimal precision
+   477 00000669 E894FAFFFF          <1> 	call save_register_file
+   478 0000066E 3D0000807F          <1> 	cmp eax, 07f800000h		;cvtss2sd instruction doesn't propagate NaNism or Infinity, so check it here
+   479 00000673 74B2                <1> 	je print_posinf
+   480 00000675 3D000080FF          <1> 	cmp eax, 0ff800000h
+   481 0000067A 74C1                <1> 	je print_neginf
+   482 0000067C 3D010080FF          <1> 	cmp eax, 0ff800001h
+   483 00000681 73D0                <1> 	jae print_nan
+   484 00000683 3D0100807F          <1> 	cmp eax, 07f800001h
+   485 00000688 7207                <1> 	jb .1				;Not a NaN
+   486 0000068A 3DFFFFFF7F          <1> 	cmp eax, 07fffffffh
+   487 0000068F 76C2                <1> 	jbe print_nan
+   488                              <1> .1:
+   489 00000691 50                  <1> 	push rax
+   490 00000692 F30F5A0424          <1> 	cvtss2sd xmm0, [rsp]		;Convert it to a double and call print_double
+   491 00000697 F20F110424          <1> 	movsd [rsp], xmm0
+   492 0000069C 58                  <1> 	pop rax
+   493 0000069D E969FEFFFF          <1> 	jmp print_double_nosave
+   494                              <1> 
+   495                              <1> random64:
+   496 000006A2 E85BFAFFFF          <1> 	call save_register_file
+   497 000006A7 48BF-               <1> 	mov rdi, randbuff
+   497 000006A9 [0000000000000000]  <1>
+   498 000006B1 BE08000000          <1> 	mov rsi, 8
+   499 000006B6 BA00000000          <1> 	mov rdx, 0
+   500 000006BB B83E010000          <1> 	mov rax, 318
+   501 000006C0 0F05                <1> 	syscall
+   502 000006C2 E8ACFAFFFF          <1> 	call load_register_file
+   503 000006C7 488B05(00000000)    <1> 	mov rax, [randbuff]
+   504 000006CE C3                  <1> 	ret
+   505                              <1> 
+   506                              <1> random_mod:
+   507 000006CF 53                  <1> 	push rbx
+   508 000006D0 51                  <1> 	push rcx
+   509 000006D1 52                  <1> 	push rdx
+   510 000006D2 56                  <1> 	push rsi
+   511 000006D3 57                  <1> 	push rdi
+   512                              <1> 
+   513 000006D4 50                  <1> 	push rax			;save our modulus
+   514 000006D5 E8C8FFFFFF          <1> 	call random64
+   515 000006DA 5B                  <1> 	pop rbx
+   516 000006DB 4831D2              <1> 	xor rdx, rdx			;set up high qword for division
+   517 000006DE 48F7F3              <1> 	div rbx
+   518 000006E1 4889D0              <1> 	mov rax, rdx			;stick modulus in rax
+   519                              <1> 
+   520 000006E4 5F                  <1> 	pop rdi
+   521 000006E5 5E                  <1> 	pop rsi
+   522 000006E6 5A                  <1> 	pop rdx
+   523 000006E7 59                  <1> 	pop rcx
+   524 000006E8 5B                  <1> 	pop rbx
+   525 000006E9 C3                  <1> 	ret
+   526                              <1> 
+   527                              <1> 	section .data
+   528                              <1> 
+   529                              <1> 	align 32
+   530                              <1> 
+   531                              <1> ssesavl:
+   532 00000000 0000000000000000    <1> 	dq 0
+   533                              <1> ssesavh:
+   534 00000008 0000000000000000    <1> 	dq 0
+   535                              <1> pd_double:
+   536 00000010 0000000000000000    <1> 	dq 0
+   537                              <1> pd_dp:
+   538 00000018 0000000000000000    <1> 	dq 0
+   539                              <1> pd_int:
+   540 00000020 0000000000000000    <1> 	dq 0			;Integer portion
+   541                              <1> pd_frac:
+   542 00000028 0000000000000000    <1> 	dq 0			;Fractional portion
+   543                              <1> NaNstr:
+   544 00000030 4E614E              <1> 	db "NaN"
+   545                              <1> NaNlen:
+   546 00000033 0300000000000000    <1> 	dq 3
+   547                              <1> PosInfstr:
+   548 0000003B 2B496E66696E697479  <1> 	db "+Infinity"
+   549                              <1> NegInfstr:
+   550 00000044 2D496E66696E697479  <1> 	db "-Infinity"
+   551                              <1> Inflen:
+   552 0000004D 0900000000000000    <1> 	dq 9
+   553                              <1> 
+   554                              <1> ; save locations for print_regs
+   555                              <1> 
+   556                              <1> rsava:
+   557 00000055 0000000000000000    <1> 	dq 0
+   558                              <1> rsavb:
+   559 0000005D 0000000000000000    <1> 	dq 0
+   560                              <1> rsavc:
+   561 00000065 0000000000000000    <1> 	dq 0
+   562                              <1> rsavd:
+   563 0000006D 0000000000000000    <1> 	dq 0
+   564                              <1> rsavsi:
+   565 00000075 0000000000000000    <1> 	dq 0
+   566                              <1> rsavdi:
+   567 0000007D 0000000000000000    <1> 	dq 0
+   568                              <1> rsavbp:
+   569 00000085 0000000000000000    <1> 	dq 0
+   570                              <1> rsavsp:
+   571 0000008D 0000000000000000    <1> 	dq 0
+   572                              <1> rsav8:
+   573 00000095 0000000000000000    <1> 	dq 0
+   574                              <1> rsav9:
+   575 0000009D 0000000000000000    <1> 	dq 0
+   576                              <1> rsav10:
+   577 000000A5 0000000000000000    <1> 	dq 0
+   578                              <1> rsav11:
+   579 000000AD 0000000000000000    <1> 	dq 0
+   580                              <1> rsav12:
+   581 000000B5 0000000000000000    <1> 	dq 0
+   582                              <1> rsav13:
+   583 000000BD 0000000000000000    <1> 	dq 0
+   584                              <1> rsav14:
+   585 000000C5 0000000000000000    <1> 	dq 0
+   586                              <1> rsav15:
+   587 000000CD 0000000000000000    <1> 	dq 0
+   588                              <1> 
+   589                              <1> 	section .bss
+   590                              <1> 
+   591                              <1> randbuff:
+   592 00000000 ????????????????    <1> 	resb 8
+   593                              <1> charout:
+   594 00000008 ??                  <1> 	resb 1
+   595                              <1> outb:
+   596 00000009 <res 28h>           <1> 	resb 40			;Work buffer for display routines
+   597                              <1> ascii:
+   598 00000031 <res 28h>           <1> 	resb 40			;ASCII output string
+   599                              <1> asciilen:
+   600 00000059 ????????????????    <1> 	resb 8			;Length of ASCII string
+     2                                  
+     3                                  	global maze_init
+     4                                  	global maze_display
+     5                                  	global maze_generate
+     6                                  
+     7                                  	DEFAULT REL
+     8                                  
+     9                                  	section .text
+    10                                  
+    11                                  ; Calling convention:
+    12                                  ; RDI, RSI, RDX, RCX, R8, R9
+    13                                  ; (then stack)
+    14                                  
+    15                                  ; Initialize the maze to a starting condition:
+    16                                  ; All left/top walls in place, except for the outer edges.
+    17                                  ; right edge has left wall in place, bottom row has top wall.
+    18                                  
+    19                                  maze_init:
+    20 000006EA 53                      	push rbx
+    21 000006EB 55                      	push rbp
+    22 000006EC 4889E5                  	mov rbp, rsp
+    23                                  
+    24 000006EF 48893D(E0000000)        	mov [maze_height], rdi
+    25 000006F6 488935(E8000000)        	mov [maze_width], rsi
+    26 000006FD 488915(F0000000)        	mov [maze_ptr], rdx
+    27                                  
+    28                                  ; set all middle contents to default value
+    29                                  
+    30 00000704 4889F8                  	mov rax, rdi		;set up our width/height in rax and rbx for multiply operation
+    31 00000707 4889F3                  	mov rbx, rsi
+    32 0000070A 4889D7                  	mov rdi, rdx 		;get destination address of array into DI
+    33 0000070D 48F7E3                  	mul rbx
+    34 00000710 4889C1                  	mov rcx, rax		;height * width becomes number of bytes to set in array
+    35 00000713 B060                    	mov al, 0b01100000	;visited = 0, top wall = 1, left wall = 1
+    36 00000715 FC                      	cld
+    37 00000716 F3AA                    	rep stosb		;clear entire array to default values
+    38                                  
+    39                                  ; lower row
+    40                                  
+    41 00000718 488B3D(F0000000)        	mov rdi, [maze_ptr]	;restore pointer we were passed
+    42 0000071F 488B1D(E8000000)        	mov rbx, [maze_width]	;width into rbx
+    43 00000726 488B05(E0000000)        	mov rax, [maze_height]	;height into rax
+    44                                  
+    45 0000072D 48FFC8                  	dec rax			;get the last row (height - 1)
+    46 00000730 48F7EB                  	imul rbx		;make pointer to first item in last row: (height -1) * width
+    47 00000733 4801C7                  	add rdi, rax		;add our existing data pointer
+    48                                  
+    49 00000736 4889D9                  	mov rcx, rbx		;set exactly WIDTH number of bytes - 1
+    50 00000739 48FFC9                  	dec rcx
+    51 0000073C B040                    	mov al, 0b01000000	;visited = 0, top wall = 1, left wall = 0
+    52 0000073E FC                      	cld
+    53 0000073F F3AA                    	rep stosb
+    54                                  
+    55                                  ; right side wall
+    56                                  
+    57 00000741 488B3D(F0000000)        	mov rdi, [maze_ptr]	;get our pointer back
+    58 00000748 488B1D(E8000000)        	mov rbx, [maze_width]	;width into rbx
+    59 0000074F 488B0D(E0000000)        	mov rcx, [maze_height]	;height into rcx
+    60 00000756 48FFC9                  	dec rcx			;height -1
+    61                                  .0:
+    62                                  				;the following 2 instructions explained:
+    63                                  				;first time through loop: point rdi to last element of first row
+    64                                  				;subsequently, add 1 height next time(s) through loop
+    65                                  				; (dec rdi takes care of extraneous DI increment by stosb instruction)
+    66 00000759 4801DF                  	add rdi, rbx
+    67 0000075C 48FFCF                  	dec rdi
+    68                                  
+    69 0000075F B020                    	mov al, 0b00100000	;visited = 0, top wall = 0, left wall = 1
+    70 00000761 AA                      	stosb			;automatically increments DI; but this is taken care of by dec rdi above
+    71 00000762 48FFC9                  	dec rcx			;   the next time it goes through the loop!
+    72 00000765 75F2                    	jne .0
+    73                                  
+    74                                  ; lower right side corner
+    75                                  
+    76 00000767 488B3D(F0000000)        	mov rdi, [maze_ptr]	;pointer
+    77 0000076E 488B1D(E8000000)        	mov rbx, [maze_width]	;width
+    78 00000775 488B05(E0000000)        	mov rax, [maze_height]	;height
+    79 0000077C 48FFC8                  	dec rax			;height-1 (point to last row)
+    80 0000077F 48F7E3                  	mul rbx			;rax = width * (height-1)
+    81 00000782 4801D8                  	add rax, rbx		;add height
+    82 00000785 48FFC8                  	dec rax			;point it to last member
+    83 00000788 4801C7                  	add rdi, rax		;apply it to the pointer
+    84 0000078B B000                    	mov al, 0x0		;visited = 0, top wall = 0, left wall = 0
+    85 0000078D 8807                    	mov [rdi], al
+    86                                  
+    87 0000078F 5D                      	pop rbp
+    88 00000790 5B                      	pop rbx
+    89                                  
+    90 00000791 C3                      	ret
+    91                                  
+    92                                  ; helper functions
+    93                                  
+    94                                  ; maze_ptr2cell
+    95                                  ; This routine takes cell hpos=r8 wpos=r9 and returns a pointer
+    96                                  ; to the cell in rdx based on the value in maze_ptr.
+    97                                  ; saves all registers
+    98                                  
+    99                                  maze_ptr2cell:
+   100 00000792 4C89C0                  	mov rax, r8
+   101 00000795 48F725(E8000000)        	mul qword [maze_width]
+   102 0000079C 4C01C8                  	add rax, r9
+   103 0000079F 480305(F0000000)        	add rax, [maze_ptr]
+   104 000007A6 4889C2                  	mov rdx, rax
+   105 000007A9 8A02                    	mov al, [rdx]
+   106 000007AB C3                      	ret
+   107                                  
+   108                                  ; Pretty print the maze.
+   109                                  ; hscale = number of character cells each maze cell should be tall,
+   110                                  ; wscale = number of character cells each maze cell should be wide.
+   111                                  ; maze_ptr is the pointer to the maze array.
+   112                                  
+   113                                  maze_display:
+   114 000007AC 53                      	push rbx
+   115 000007AD 55                      	push rbp
+   116 000007AE 4889E5                  	mov rbp, rsp
+   117                                  
+   118 000007B1 48893D(E0000000)        	mov [maze_height], rdi			;save all our arguments
+   119 000007B8 488935(E8000000)        	mov [maze_width], rsi
+   120 000007BF 488915(F0000000)        	mov [maze_ptr], rdx
+   121 000007C6 48890D(F8000000)        	mov [maze_height_scale], rcx
+   122 000007CD 4C8905(00010000)        	mov [maze_width_scale], r8
+   123                                  
+   124 000007D4 4D31C0                  	xor r8, r8						;clear height loop counter
+   125                                  .icycle:
+   126 000007D7 4D31C9                  	xor r9, r9						;clear width loop counter for top wall
+   127                                  .jcycle1:
+   128                                  ; display top wall of cell r8, r9
+   129 000007DA E8B3FFFFFF              	call maze_ptr2cell
+   130 000007DF 2440                    	and al, 0b01000000
+   131 000007E1 7404                    	jz .notop
+   132 000007E3 B02D                    	mov al, '-'
+   133 000007E5 EB02                    	jmp .printtop
+   134                                  .notop:
+   135 000007E7 B020                    	mov al, ' '
+   136                                  .printtop:
+   137 000007E9 488B0D(00010000)        	mov rcx, [maze_width_scale]
+   138                                  .printtop1:
+   139 000007F0 51                      	push rcx
+   140 000007F1 50                      	push rax
+   141 000007F2 4150                    	push r8
+   142 000007F4 4151                    	push r9
+   143 000007F6 E840F8FFFF              	call print_char
+   144 000007FB 4159                    	pop r9
+   145 000007FD 4158                    	pop r8
+   146 000007FF 58                      	pop rax
+   147 00000800 59                      	pop rcx
+   148 00000801 E2ED                    	loop .printtop1
+   149                                  .jrecycle1:
+   150 00000803 49FFC1                  	inc r9
+   151 00000806 4C3B0D(E8000000)        	cmp r9, [maze_width]
+   152 0000080D 72CB                    	jb .jcycle1
+   153                                  
+   154 0000080F 4150                    	push r8
+   155 00000811 4151                    	push r9
+   156 00000813 E81BF8FFFF              	call print_cr
+   157 00000818 4159                    	pop r9
+   158 0000081A 4158                    	pop r8
+   159                                  
+   160                                  ; loop [maze_height_scale] number of times to render the left side walls
+   161                                  
+   162 0000081C 4D31D2                  	xor r10, r10
+   163                                  .kcycle:
+   164 0000081F 4D31C9                  	xor r9, r9
+   165                                  .jcycle2:
+   166                                  
+   167                                  ; print "|   " or "    " depending on left wall flag in cell
+   168 00000822 E86BFFFFFF              	call maze_ptr2cell
+   169 00000827 50                      	push rax				;save, so we can check visited status
+   170 00000828 2420                    	and al, 0b00100000
+   171 0000082A 7404                    	jz .noside
+   172 0000082C B07C                    	mov al, '|'
+   173 0000082E EB02                    	jmp .printside
+   174                                  .noside:
+   175 00000830 B020                    	mov al, ' '
+   176                                  .printside:
+   177                                  
+   178                                  ; print left-size character as set above
+   179 00000832 4150                    	push r8
+   180 00000834 4151                    	push r9
+   181 00000836 4152                    	push r10
+   182 00000838 E8FEF7FFFF              	call print_char
+   183 0000083D 415A                    	pop r10
+   184 0000083F 4159                    	pop r9
+   185 00000841 4158                    	pop r8
+   186                                  
+   187                                  ; restore rax and check for visited status
+   188 00000843 58                      	pop rax
+   189 00000844 2480                    	and al, 0b10000000
+   190 00000846 740B                    	jz .novis
+   191 00000848 B020                    	mov al, ' '
+   192 0000084A 4D09D2                  	or r10, r10
+   193 0000084D 7506                    	jne .printvis
+   194                                  ;	mov al, '#'
+   195 0000084F B020                    	mov al, ' '						; print a space no matter what (visiting debug off)
+   196 00000851 EB02                    	jmp .printvis
+   197                                  .novis:
+   198 00000853 B020                    	mov al, ' '
+   199                                  .printvis:
+   200 00000855 4150                    	push r8
+   201 00000857 4151                    	push r9
+   202 00000859 4152                    	push r10
+   203 0000085B E8DBF7FFFF              	call print_char
+   204 00000860 415A                    	pop r10
+   205 00000862 4159                    	pop r9
+   206 00000864 4158                    	pop r8
+   207                                  
+   208                                  ; print n number of spaces to pad the cell
+   209 00000866 488B0D(00010000)        	mov rcx, [maze_width_scale]
+   210 0000086D 4883E902                	sub rcx, 2						;rcx = maze_width_scale - 2, because we already printed first character + vis
+   211                                  .sidepad:
+   212 00000871 B020                    	mov al, ' '
+   213 00000873 51                      	push rcx
+   214 00000874 4150                    	push r8
+   215 00000876 4151                    	push r9
+   216 00000878 4152                    	push r10
+   217 0000087A E8BCF7FFFF              	call print_char
+   218 0000087F 415A                    	pop r10
+   219 00000881 4159                    	pop r9
+   220 00000883 4158                    	pop r8
+   221 00000885 59                      	pop rcx
+   222 00000886 E2E9                    	loop .sidepad
+   223                                  
+   224                                  .jrecycle2:
+   225 00000888 49FFC1                  	inc r9
+   226 0000088B 4C3B0D(E8000000)        	cmp r9, [maze_width]
+   227 00000892 728E                    	jb .jcycle2
+   228                                  .krecycle:
+   229 00000894 4150                    	push r8
+   230 00000896 4151                    	push r9
+   231 00000898 4152                    	push r10
+   232 0000089A E894F7FFFF              	call print_cr
+   233 0000089F 415A                    	pop r10
+   234 000008A1 4159                    	pop r9
+   235 000008A3 4158                    	pop r8
+   236 000008A5 49FFC2                  	inc r10
+   237 000008A8 4C3B15(F8000000)        	cmp r10, [maze_height_scale]
+   238 000008AF 0F826AFFFFFF            	jb .kcycle
+   239                                  
+   240                                  ; recycle outer (i) loop
+   241 000008B5 49FFC0                  	inc r8
+   242 000008B8 4C3B05(E0000000)        	cmp r8, [maze_height]
+   243 000008BF 0F8212FFFFFF            	jb .icycle
+   244                                  
+   245 000008C5 5D                      	pop rbp
+   246 000008C6 5B                      	pop rbx
+   247                                  
+   248 000008C7 C3                      	ret
+   249                                  
+   250                                  ; Actually generate the maze
+   251                                  ; maze_generate carves a unique path through the maze from any point to any other point.
+   252                                  ;
+   253                                  ; helper functions:
+   254                                  ; maze_traverse starts at the traverse points and carves a random path
+   255                                  ; through the maze until it reaches a dead end, indicated by there
+   256                                  ; being no unvisited neighbors, which is when it returns to the caller.
+   257                                  ;
+   258                                  ; maze_get_unvis_ptr takes the index of the unvis_neighs array and returns a pointer
+   259                                  ; in RSI to the actual data (offset_h and offset_w pair).
+   260                                  
+   261                                  maze_get_unvis_ptr:
+   262 000008C8 53                      	push rbx
+   263 000008C9 BB10000000              	mov rbx, 16
+   264 000008CE 48F7E3                  	mul rbx
+   265 000008D1 5B                      	pop rbx
+   266 000008D2 4805[61000000]          	add rax, unvis_neighs
+   267 000008D8 4889C6                  	mov rsi, rax						;SI = index into unvis_neighs array
+   268 000008DB C3                      	ret
+   269                                  
+   270                                  maze_traverse:
+   271 000008DC 4831C0                  	xor rax, rax
+   272 000008DF 488905(18010000)        	mov [num_unvis_neighs], rax			;clear our unvisited neighbors counter
+   273                                  ; get r8, r9 set up with current cell
+   274 000008E6 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   275 000008ED 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   276                                  ; check upwards neighbor
+   277 000008F4 4D09C0                  	or r8, r8							;traverse_h is zero?
+   278 000008F7 7430                    	je .checkleft
+   279 000008F9 49FFC8                  	dec r8
+   280 000008FC E891FEFFFF              	call maze_ptr2cell
+   281 00000901 2480                    	and al, 0b10000000					;check visited bit of upwards neighbor
+   282 00000903 7524                    	jne .checkleft
+   283 00000905 488B05(18010000)        	mov rax, [num_unvis_neighs]
+   284 0000090C E8B7FFFFFF              	call maze_get_unvis_ptr
+   285 00000911 48C7C0FFFFFFFF          	mov rax, -1
+   286 00000918 488906                  	mov [rsi], rax
+   287 0000091B 4831C0                  	xor rax, rax
+   288 0000091E 48894608                	mov [rsi+8], rax					;offset_h=-1, offset_w=0
+   289 00000922 48FF05(18010000)        	inc qword [num_unvis_neighs]		;num_unvis_neighs++
+   290                                  ; check left neighbor
+   291                                  .checkleft:
+   292 00000929 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   293 00000930 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   294 00000937 4D09C9                  	or r9, r9							;traverse_w is zero?
+   295 0000093A 7430                    	je .checkright
+   296 0000093C 49FFC9                  	dec r9
+   297 0000093F E84EFEFFFF              	call maze_ptr2cell
+   298 00000944 2480                    	and al, 0b10000000					;check visited bit of leftwards neighbor
+   299 00000946 7524                    	jne .checkright
+   300 00000948 488B05(18010000)        	mov rax, [num_unvis_neighs]
+   301 0000094F E874FFFFFF              	call maze_get_unvis_ptr
+   302 00000954 4831C0                  	xor rax, rax
+   303 00000957 488906                  	mov [rsi], rax
+   304 0000095A 48C7C0FFFFFFFF          	mov rax, -1
+   305 00000961 48894608                	mov [rsi+8], rax					;offset_h=0, offset_w=-1
+   306 00000965 48FF05(18010000)        	inc qword [num_unvis_neighs]		;num_unvis_neighs++
+   307                                  ; check right neighbor
+   308                                  .checkright:
+   309 0000096C 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   310 00000973 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   311 0000097A 4C8B15(E8000000)        	mov r10, [maze_width]
+   312 00000981 4983EA02                	sub r10, 2							;maze_width - 2
+   313 00000985 4D39D1                  	cmp r9, r10
+   314 00000988 732E                    	jae .checkdown
+   315 0000098A 49FFC1                  	inc r9
+   316 0000098D E800FEFFFF              	call maze_ptr2cell
+   317 00000992 2480                    	and al, 0b10000000					;check visited bit of rightwards neighbor
+   318 00000994 7522                    	jne .checkdown
+   319 00000996 488B05(18010000)        	mov rax, [num_unvis_neighs]
+   320 0000099D E826FFFFFF              	call maze_get_unvis_ptr
+   321 000009A2 4831C0                  	xor rax, rax
+   322 000009A5 488906                  	mov [rsi], rax
+   323 000009A8 B801000000              	mov rax, 1
+   324 000009AD 48894608                	mov [rsi+8], rax					;offset_h=0, offset_w=1
+   325 000009B1 48FF05(18010000)        	inc qword [num_unvis_neighs]		;num_unvis_neighs++
+   326                                  ; check down neighbor
+   327                                  .checkdown:
+   328 000009B8 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   329 000009BF 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   330 000009C6 4C8B15(E0000000)        	mov r10, [maze_height]
+   331 000009CD 4983EA02                	sub r10, 2							;maze_height - 2
+   332 000009D1 4D39D0                  	cmp r8, r10
+   333 000009D4 732E                    	jae .checknumunvis
+   334 000009D6 49FFC0                  	inc r8
+   335 000009D9 E8B4FDFFFF              	call maze_ptr2cell
+   336 000009DE 2480                    	and al, 0b10000000					;check visited bit of down neighbor
+   337 000009E0 7522                    	jne .checknumunvis
+   338 000009E2 488B05(18010000)        	mov rax, [num_unvis_neighs]
+   339 000009E9 E8DAFEFFFF              	call maze_get_unvis_ptr
+   340 000009EE B801000000              	mov rax, 1
+   341 000009F3 488906                  	mov [rsi], rax
+   342 000009F6 4831C0                  	xor rax, rax
+   343 000009F9 48894608                	mov [rsi+8], rax					;offset_h=1, offset_w=0
+   344 000009FD 48FF05(18010000)        	inc qword [num_unvis_neighs]		;num_unvis_neighs++
+   345                                  
+   346                                  .checknumunvis:
+   347 00000A04 488B05(18010000)        	mov rax, [num_unvis_neighs]
+   348 00000A0B 4809C0                  	or rax, rax
+   349 00000A0E 7518                    	jne .chooserand
+   350 00000A10 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   351 00000A17 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   352 00000A1E E86FFDFFFF              	call maze_ptr2cell
+   353 00000A23 0C80                    	or al, 0b10000000
+   354 00000A25 8802                    	mov [rdx], al						;mark ourselves as visited
+   355 00000A27 C3                      	ret									;no unvisited neighbors, so return!
+   356                                  
+   357                                  .chooserand:
+   358 00000A28 488B05(18010000)        	mov rax, [num_unvis_neighs]
+   359 00000A2F E89BFCFFFF              	call random_mod
+   360                                  ;	push rax
+   361 00000A34 E88FFEFFFF              	call maze_get_unvis_ptr
+   362                                  ;	pop rax
+   363                                  ;	push rsi
+   364                                  ;	call print_uint64
+   365                                  ;	call print_space
+   366                                  ;	call print_space
+   367                                  ;	mov rax, [num_unvis_neighs]
+   368                                  ;	call print_uint64
+   369                                  ;	call print_cr
+   370                                  ;	pop rsi
+   371 00000A39 4C8B16                  	mov r10, [rsi]						;r10 = random neighbor's offset_h
+   372 00000A3C 4C8B5E08                	mov r11, [rsi+8]					;r11 = random neighbor's offset_w
+   373 00000A40 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   374 00000A47 4C8B0D(10010000)        	mov r9, [maze_traverse_w]			;restore our traverse pointers
+   375                                  
+   376                                  ; check which direction we are going
+   377 00000A4E 4983FAFF                	cmp r10, -1
+   378 00000A52 750B                    	jne .checkdirleft
+   379 00000A54 E839FDFFFF              	call maze_ptr2cell
+   380 00000A59 24BF                    	and al, 0b10111111					;tear down top wall
+   381 00000A5B 8802                    	mov [rdx], al
+   382 00000A5D EB31                    	jmp .markvis
+   383                                  .checkdirleft:
+   384 00000A5F 4983FBFF                	cmp r11, -1
+   385 00000A63 750B                    	jne .checkdirright
+   386 00000A65 E828FDFFFF              	call maze_ptr2cell
+   387 00000A6A 24DF                    	and al, 0b11011111					;tear down left wall
+   388 00000A6C 8802                    	mov [rdx], al
+   389 00000A6E EB20                    	jmp .markvis
+   390                                  .checkdirright:
+   391 00000A70 4983FB01                	cmp r11, 1
+   392 00000A74 750E                    	jne .checkdirdown
+   393 00000A76 49FFC1                  	inc r9
+   394 00000A79 E814FDFFFF              	call maze_ptr2cell
+   395 00000A7E 24DF                    	and al, 0b11011111					;tear down left wall or righthand neighbor
+   396 00000A80 8802                    	mov [rdx], al
+   397 00000A82 EB0C                    	jmp .markvis
+   398                                  .checkdirdown:
+   399                                  ; not any of the others, must be down
+   400 00000A84 49FFC0                  	inc r8
+   401 00000A87 E806FDFFFF              	call maze_ptr2cell
+   402 00000A8C 24BF                    	and al, 0b10111111					;tear down top wall of downstairs neighbor
+   403 00000A8E 8802                    	mov [rdx], al
+   404                                  
+   405                                  .markvis:
+   406 00000A90 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   407 00000A97 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   408 00000A9E E8EFFCFFFF              	call maze_ptr2cell
+   409 00000AA3 0C80                    	or al, 0b10000000
+   410 00000AA5 8802                    	mov [rdx], al						;mark ourselves as visited
+   411                                  
+   412 00000AA7 4D01D0                  	add r8, r10
+   413 00000AAA 4C8905(08010000)        	mov [maze_traverse_h], r8
+   414 00000AB1 4D01D9                  	add r9, r11							;do traversal
+   415 00000AB4 4C890D(10010000)        	mov [maze_traverse_w], r9
+   416                                  
+   417                                  ;	mov rax, r8
+   418                                  ;	call print_uint64
+   419                                  ;	call print_space
+   420                                  ;	mov rax, [maze_traverse_w]
+   421                                  ;	call print_uint64
+   422                                  ;	call print_cr
+   423                                  
+   424                                  ;	mov rdi, [maze_height]
+   425                                  ;	mov rsi, [maze_width]
+   426                                  ;	mov rdx, [maze_ptr]
+   427                                  ;	mov rcx, 2
+   428                                  ;	mov r8, 5
+   429                                  ;	call maze_display
+   430                                  
+   431 00000ABB E91CFEFFFF              	jmp maze_traverse					;and recycle for another go at it
+   432                                  
+   433                                  maze_hunt_check:
+   434 00000AC0 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   435 00000AC7 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   436 00000ACE E8BFFCFFFF              	call maze_ptr2cell
+   437 00000AD3 4989D4                  	mov r12, rdx						;save pointer to our cell
+   438 00000AD6 2480                    	and al, 0b10000000					;we're interested in unvisited cells only
+   439 00000AD8 0F85BB000000            	jnz .notfound						;high bit set == already visited cell
+   440                                  ; check up neighbor
+   441 00000ADE 4D09C0                  	or r8, r8							;in zeroeth row?
+   442 00000AE1 741D                    	jz .checkleft						;yes, so there is no upwards neighbor
+   443 00000AE3 49FFC8                  	dec r8
+   444 00000AE6 E8A7FCFFFF              	call maze_ptr2cell
+   445 00000AEB 2480                    	and al, 0b10000000					;is our upwards neighbor visited?
+   446 00000AED 7411                    	jz .checkleft						;no, not visited, so move on to check left neighbor
+   447 00000AEF 418A0424                	mov al, [r12]
+   448 00000AF3 0C80                    	or al, 0b10000000					;visit ourselves
+   449 00000AF5 24BF                    	and al, 0b10111111					;tear down top wall
+   450 00000AF7 41880424                	mov [r12], al						;and put it back
+   451 00000AFB E993000000              	jmp .found
+   452                                  .checkleft:
+   453 00000B00 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   454 00000B07 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   455 00000B0E 4D09C9                  	or r9, r9							;in zeroeth column?
+   456 00000B11 741A                    	jz .checkright						;yes, so there is no leftside neighbor.
+   457 00000B13 49FFC9                  	dec r9
+   458 00000B16 E877FCFFFF              	call maze_ptr2cell
+   459 00000B1B 2480                    	and al, 0b10000000
+   460 00000B1D 740E                    	jz .checkright
+   461 00000B1F 418A0424                	mov al, [r12]
+   462 00000B23 0C80                    	or al, 0b10000000
+   463 00000B25 24DF                    	and al, 0b11011111					;tear down our left side wall
+   464 00000B27 41880424                	mov [r12], al
+   465 00000B2B EB66                    	jmp .found
+   466                                  .checkright:
+   467 00000B2D 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   468 00000B34 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   469 00000B3B 4C8B15(E8000000)        	mov r10, [maze_width]
+   470 00000B42 4983EA02                	sub r10, 2							;maze_width - 2
+   471 00000B46 4D39D1                  	cmp r9, r10
+   472 00000B49 7316                    	jae .checkdown
+   473 00000B4B 49FFC1                  	inc r9
+   474 00000B4E E83FFCFFFF              	call maze_ptr2cell
+   475 00000B53 2480                    	and al, 0b10000000
+   476 00000B55 740A                    	jz .checkdown
+   477 00000B57 8A02                    	mov al, [rdx]						;get back our neighbor
+   478 00000B59 0C80                    	or al, 0b10000000					;visit him
+   479 00000B5B 24DF                    	and al, 0b11011111					;tear down his left side wall
+   480 00000B5D 8802                    	mov [rdx], al						;put it back
+   481 00000B5F EB32                    	jmp .found
+   482                                  .checkdown:
+   483 00000B61 4C8B05(08010000)        	mov r8, [maze_traverse_h]
+   484 00000B68 4C8B0D(10010000)        	mov r9, [maze_traverse_w]
+   485 00000B6F 4C8B15(E0000000)        	mov r10, [maze_height]
+   486 00000B76 4983EA02                	sub r10, 2							;maze_height - 2
+   487 00000B7A 4D39D0                  	cmp r8, r10
+   488 00000B7D 731A                    	jae .notfound
+   489 00000B7F 49FFC0                  	inc r8
+   490 00000B82 E80BFCFFFF              	call maze_ptr2cell
+   491 00000B87 2480                    	and al, 0b10000000
+   492 00000B89 790E                    	jns .notfound
+   493 00000B8B 8A02                    	mov al, [rdx]
+   494 00000B8D 0C80                    	or al, 0b10000000					;visit downwards neighbor
+   495 00000B8F 24BF                    	and al, 0b10111111					;tear down his top wall
+   496 00000B91 8802                    	mov [rdx], al						;put it back and fall through to .found
+   497                                  
+   498                                  .found:
+   499 00000B93 B801000000              	mov rax, 1
+   500 00000B98 C3                      	ret
+   501                                  .notfound:
+   502 00000B99 B800000000              	mov rax, 0
+   503 00000B9E C3                      	ret
+   504                                  
+   505                                  maze_hunt:
+   506 00000B9F 488B05(E0000000)        	mov rax, [maze_height]				;pick a random starting spot for the hunt
+   507 00000BA6 48FFC8                  	dec rax
+   508 00000BA9 E821FBFFFF              	call random_mod
+   509 00000BAE 488905(20010000)        	mov [maze_hunt_start_h], rax
+   510 00000BB5 488905(08010000)        	mov [maze_traverse_h], rax			;and set the traverse pointers
+   511 00000BBC 488B05(E8000000)        	mov rax, [maze_width]
+   512 00000BC3 48FFC8                  	dec rax
+   513 00000BC6 E804FBFFFF              	call random_mod
+   514 00000BCB 488905(28010000)        	mov [maze_hunt_start_w], rax
+   515 00000BD2 488905(10010000)        	mov [maze_traverse_w], rax
+   516                                  %ifdef DEBUG
+   517                                  	call print_embedded_cstring
+   518                                  	db "maze_hunt: chose random hunt starting point h=", 0x00
+   519                                  	mov rax, [maze_hunt_start_h]
+   520                                  	call print_uint64
+   521                                  	call print_embedded_cstring
+   522                                  	db " w=", 0x00
+   523                                  	mov rax, [maze_hunt_start_w]
+   524                                  	call print_uint64
+   525                                  	call print_cr
+   526                                  %endif
+   527                                  
+   528                                  maze_check_loop:
+   529                                  %ifdef DEBUG
+   530                                  	call print_embedded_cstring
+   531                                  	db "maze_hunt: checking h=", 0x00
+   532                                  	mov rax, [maze_traverse_h]
+   533                                  	call print_uint64
+   534                                  	call print_embedded_cstring
+   535                                  	db " w=", 0x00
+   536                                  	mov rax, [maze_traverse_w]
+   537                                  	call print_uint64
+   538                                  	call print_cr
+   539                                  %endif
+   540 00000BD9 E8E2FEFFFF              	call maze_hunt_check
+   541 00000BDE 4809C0                  	or rax, rax
+   542 00000BE1 7574                    	jnz maze_hunt_found					;if maze_hunt_check returns nonzero, we found a new starting cell
+   543                                  
+   544 00000BE3 4C8B05(E0000000)        	mov r8, [maze_height]
+   545 00000BEA 49FFC8                  	dec r8
+   546 00000BED 4C8B0D(E8000000)        	mov r9, [maze_width]
+   547 00000BF4 49FFC9                  	dec r9
+   548 00000BF7 48FF05(10010000)        	inc qword [maze_traverse_w]
+   549 00000BFE 488B05(10010000)        	mov rax, [maze_traverse_w]
+   550 00000C05 4C39C8                  	cmp rax, r9
+   551 00000C08 7227                    	jb maze_check_back_to_start			;increment traverse_w, loop if we haven't reached the guard column yet
+   552 00000C0A 4831C0                  	xor rax, rax
+   553 00000C0D 488905(10010000)        	mov [maze_traverse_w], rax			;zero traverse_w so we can start on the next row
+   554 00000C14 48FF05(08010000)        	inc qword [maze_traverse_h]
+   555 00000C1B 488B05(08010000)        	mov rax, [maze_traverse_h]
+   556 00000C22 4C39C0                  	cmp rax, r8
+   557 00000C25 720A                    	jb maze_check_back_to_start			;increment traverse_h, loop if we haven't reached guard row yet
+   558 00000C27 4831C0                  	xor rax, rax
+   559 00000C2A 488905(08010000)        	mov [maze_traverse_h], rax			;zero traverse_h so we can start again from the top
+   560                                  
+   561                                  maze_check_back_to_start:
+   562 00000C31 488B05(10010000)        	mov rax, [maze_traverse_w]
+   563 00000C38 483B05(28010000)        	cmp rax, [maze_hunt_start_w]
+   564 00000C3F 7598                    	jne maze_check_loop
+   565 00000C41 488B05(08010000)        	mov rax, [maze_traverse_h]
+   566 00000C48 483B05(20010000)        	cmp rax, [maze_hunt_start_h]
+   567 00000C4F 7588                    	jne maze_check_loop
+   568                                  %ifdef DEBUG
+   569                                  	call print_embedded_cstring
+   570                                  	db "maze_hunt: found no more unvisited cells!", 0x0a, 0x00
+   571                                  %endif
+   572 00000C51 B800000000              	mov rax, 0							;made it back to our starting point without finding a cell
+   573 00000C56 C3                      	ret
+   574                                  
+   575                                  maze_hunt_found:
+   576                                  %ifdef DEBUG
+   577                                  	call print_embedded_cstring
+   578                                  	db "maze_hunt: found unvisited cell with visited neighbor at: h=", 0x00
+   579                                  	mov rax, [maze_traverse_h]
+   580                                  	call print_uint64
+   581                                  	call print_embedded_cstring
+   582                                  	db " w=", 0x00
+   583                                  	mov rax, [maze_traverse_w]
+   584                                  	call print_uint64
+   585                                  	call print_cr
+   586                                  %endif
+   587 00000C57 B801000000              	mov rax, 1
+   588 00000C5C C3                      	ret
+   589                                  
+   590                                  maze_generate:
+   591 00000C5D 53                      	push rbx
+   592 00000C5E 55                      	push rbp
+   593 00000C5F 4889E5                  	mov rbp, rsp
+   594                                  
+   595 00000C62 48893D(E0000000)        	mov [maze_height], rdi
+   596 00000C69 488935(E8000000)        	mov [maze_width], rsi
+   597 00000C70 488915(F0000000)        	mov [maze_ptr], rdx
+   598                                  
+   599                                  ; generate random starting points for traverse
+   600 00000C77 488B05(E0000000)        	mov rax, [maze_height]
+   601 00000C7E 48FFC8                  	dec rax
+   602 00000C81 E849FAFFFF              	call random_mod
+   603 00000C86 488905(08010000)        	mov [maze_traverse_h], rax
+   604 00000C8D 488B05(E8000000)        	mov rax, [maze_width]
+   605 00000C94 48FFC8                  	dec rax
+   606 00000C97 E833FAFFFF              	call random_mod
+   607 00000C9C 488905(10010000)        	mov [maze_traverse_w], rax
+   608                                  %ifdef DEBUG
+   609                                  	call print_embedded_cstring
+   610                                  	db "maze_generate: chose random traverse starting point h=", 0x00
+   611                                  	mov rax, [maze_traverse_h]
+   612                                  	call print_uint64
+   613                                  	call print_embedded_cstring
+   614                                  	db " w=", 0x00
+   615                                  	mov rax, [maze_traverse_w]
+   616                                  	call print_uint64
+   617                                  	call print_cr
+   618                                  %endif
+   619                                  
+   620                                  ; traversal loop: traverse then hunt until hunt returns finding no unvisited cells.
+   621                                  
+   622                                  maze_generate_trav_loop:
+   623 00000CA3 E834FCFFFF              	call maze_traverse
+   624                                  %ifdef DEBUG
+   625                                  	mov rdi, [maze_height]
+   626                                  	mov rsi, [maze_width]
+   627                                  	mov rdx, [maze_ptr]
+   628                                  	mov rcx, 2
+   629                                  	mov r8, 5
+   630                                  	call maze_display
+   631                                  %endif
+   632 00000CA8 E8F2FEFFFF              	call maze_hunt
+   633 00000CAD 4809C0                  	or rax, rax
+   634 00000CB0 75F1                    	jnz maze_generate_trav_loop	;loop until rax == zero
+   635                                  
+   636 00000CB2 5D                      	pop rbp
+   637 00000CB3 5B                      	pop rbx
+   638 00000CB4 C3                      	ret
+   639                                  
+   640                                  	section .data
+   641                                  
+   642 000000D5 90<rep Bh>              	align 32
+   643                                  
+   644                                  maze_height:
+   645 000000E0 0000000000000000        	dq 0						;The height in cells of our maze (bottom row is a padding row)
+   646                                  maze_width:
+   647 000000E8 0000000000000000        	dq 0						;The width of our maze (right side column is a padding column)
+   648                                  maze_ptr:
+   649 000000F0 0000000000000000        	dq 0
+   650                                  maze_height_scale:
+   651 000000F8 0000000000000000        	dq 0
+   652                                  maze_width_scale:
+   653 00000100 0000000000000000        	dq 0
+   654                                  maze_traverse_h:
+   655 00000108 0000000000000000        	dq 0
+   656                                  maze_traverse_w:
+   657 00000110 0000000000000000        	dq 0
+   658                                  num_unvis_neighs:
+   659 00000118 0000000000000000        	dq 0
+   660                                  maze_hunt_start_h:
+   661 00000120 0000000000000000        	dq 0
+   662                                  maze_hunt_start_w:
+   663 00000128 0000000000000000        	dq 0
+   664                                  
+   665                                  	section .bss
+   666                                  
+   667                                  unvis_neighs:
+   668 00000061 <res 40h>               	resb 16 * 4					;unvis_neighs array. offset_h, offset_w * [4]
+   669                                  
