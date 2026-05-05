@@ -43,8 +43,8 @@ Example run with 10x10 maze, displayed and sent to dumpfile:mazedump
 ---------------------------
 
 Contents of mazedump file: each byte is a maze cell, bit 7 indicates if the cell
-has been visited (used when generating the maze), bit 6 is the left wall, and
-bit 5 is the top wall of the cell. The right wall and bottom wall are implied by
+has been visited (used when generating the maze), bit 6 is the top wall, and
+bit 5 is the left wall of the cell. The right wall and bottom wall are implied by
 the adjacent cell, and consequently the right side column of cells are dedicated
 to providing a solid left wall, and the bottom row of cells are dedicated to
 providing a solid top wall for the bottom of the maze. Consequentally, a 10x10
