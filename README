@@ -11,6 +11,11 @@ To build:
 make clean
 make
 
+Usage screen:
+
+[ssviatko@catamaran huntkill]$ ./hk
+usage: huntkill <height> <width> <cellheight> <cellwidth> <dumpfile>
+
 Example run with 10x10 maze, displayed and sent to dumpfile:mazedump
 
 [ssviatko@catamaran huntkill]$ ./hk 10 10 1 3 mazedump
@@ -51,6 +56,40 @@ array of cells will produce a 9x9 maze.
 0000050 80a0 80a0 80a0 c0a0 2080 4040 4040 4040
 0000060 4040 0040
 0000064
+
+Example 8x8 maze with cell height and with set to 3, 8 respectively
+in order to print larger, easier to see cells:
+
+[ssviatko@catamaran huntkill]$ ./hk 8 8 3 8 mazedump
+--------------------------------------------------------
+|                                       |               |
+|                                       |               |
+|                                       |               |
+        --------                --------
+|       |       |       |               |       |       |
+|       |       |       |               |       |       |
+|       |       |       |               |       |       |
+                        --------
+|               |               |               |       |
+|               |               |               |       |
+|               |               |               |       |
+------------------------        ----------------
+|                               |               |       |
+|                               |               |       |
+|                               |               |       |
+        ------------------------
+|       |                               |       |       |
+|       |                               |       |       |
+|       |                               |       |       |
+        --------        ----------------
+|               |       |                       |       |
+|               |       |                       |       |
+|               |       |                       |       |
+--------                        ----------------
+|               |       |                               |
+|               |       |                               |
+|               |       |                               |
+--------------------------------------------------------
 
 Here is a 20x20 maze (effectively 19x19):
 
@@ -95,7 +134,7 @@ Here is a 20x20 maze (effectively 19x19):
 |                       |     |                    |     |
 ---------------------------------------------------------
 
-Here is a 30x50 maze:
+Here is a 30x50 maze: (may overflow screen width, make your screen wider to view properly)
 
 [ssviatko@catamaran huntkill]$ ./hk 30 50 1 3 mazedump
 ---------------------------------------------------------------------------------------------------------------------------------------------------
