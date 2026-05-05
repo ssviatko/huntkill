@@ -1,0 +1,9 @@
+This program implements the "hunt and kill" algorithm for maze generation.
+
+There is an implementation in pure C (huntkill.c), also there is an implementation
+in x86-64 assembly language which is called from a C program (asm.asm/main.c).
+
+The purpose of this repository is to demonstrate my skills with modern 64-bit
+assembly language and interfacing assembly language routines with a C program.
+
+
