@@ -6,7 +6,10 @@ in x86-64 assembly language which is called from a C program (asm.asm/main.c).
 The purpose of this repository is to demonstrate my skills with modern 64-bit
 assembly language and interfacing assembly language routines with a C program.
 
-To build:
+To build: make sure nasm is installed on your machine:
+
+Debian: sudo apt-get install nasm
+Arch: sudo pacman -S nasm
 
 make clean
 make
