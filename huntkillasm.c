@@ -25,7 +25,7 @@ extern void maze_generate(uint64_t a_height, uint64_t a_width, uint8_t *array);
 int main(int argc, char **argv)
 {
 	if (argc != 6) {
-		printf("usage: huntkill <height> <width> <cellheight> <cellwidth> <dumpfile>\n");
+		printf("usage: huntkillasm <height> <width> <cellheight> <cellwidth> <dumpfile>\n");
 		exit(0);
 	}
 
