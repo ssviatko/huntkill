@@ -159,37 +159,37 @@ int maze_hunt(maze_t *m)
 void maze_traverse(maze_t *m)
 {
 	do {
-		unvis_neigh_t nl[4];
+		unvis_neigh_t neighbor_list[4];
 		unsigned int num_unvis_neighs = 0;
 		// check up neighbor
 		if (m->traverse_h > 0) {
 			if (m->maze[m->traverse_h - 1][m->traverse_w].visited == 0) {
-				nl[num_unvis_neighs].offset_h = -1;
-				nl[num_unvis_neighs].offset_w = 0;
+				neighbor_list[num_unvis_neighs].offset_h = -1;
+				neighbor_list[num_unvis_neighs].offset_w = 0;
 				++num_unvis_neighs;
 			}
 		}
 		// check left neighbor
 		if (m->traverse_w > 0) {
 			if (m->maze[m->traverse_h][m->traverse_w - 1].visited == 0) {
-				nl[num_unvis_neighs].offset_h = 0;
-				nl[num_unvis_neighs].offset_w = -1;
+				neighbor_list[num_unvis_neighs].offset_h = 0;
+				neighbor_list[num_unvis_neighs].offset_w = -1;
 				++num_unvis_neighs;
 			}
 		}
 		// check right neighbor
 		if (m->traverse_w < MAZE_WIDTH - 1) {
 			if (m->maze[m->traverse_h][m->traverse_w + 1].visited == 0) {
-				nl[num_unvis_neighs].offset_h = 0;
-				nl[num_unvis_neighs].offset_w = 1;
+				neighbor_list[num_unvis_neighs].offset_h = 0;
+				neighbor_list[num_unvis_neighs].offset_w = 1;
 				++num_unvis_neighs;
 			}
 		}
 		// check down neighbor
 		if (m->traverse_h < MAZE_HEIGHT - 1) {
 			if (m->maze[m->traverse_h + 1][m->traverse_w].visited == 0) {
-				nl[num_unvis_neighs].offset_h = 1;
-				nl[num_unvis_neighs].offset_w = 0;
+				neighbor_list[num_unvis_neighs].offset_h = 1;
+				neighbor_list[num_unvis_neighs].offset_w = 0;
 				++num_unvis_neighs;
 			}
 		}
@@ -202,23 +202,23 @@ void maze_traverse(maze_t *m)
 		unsigned int rand_neighbor = rand() % num_unvis_neighs;
 //		printf("chose random neighbor %d out of %d off_h=%d off_w=%d\n", rand_neighbor, num_unvis_neighs, nl[rand_neighbor].offset_h, nl[rand_neighbor].offset_w);
 		// break down wall to random neighbor
-		if (nl[rand_neighbor].offset_h == -1) {
+		if (neighbor_list[rand_neighbor].offset_h == -1) {
 			m->maze[m->traverse_h][m->traverse_w].top_wall = 0;
 		}
-		if (nl[rand_neighbor].offset_w == -1) {
+		if (neighbor_list[rand_neighbor].offset_w == -1) {
 			m->maze[m->traverse_h][m->traverse_w].left_wall = 0;
 		}
-		if (nl[rand_neighbor].offset_w == 1) {
+		if (neighbor_list[rand_neighbor].offset_w == 1) {
 			m->maze[m->traverse_h][m->traverse_w + 1].left_wall = 0;
 		}
-		if (nl[rand_neighbor].offset_h == 1) {
+		if (neighbor_list[rand_neighbor].offset_h == 1) {
 			m->maze[m->traverse_h + 1][m->traverse_w].top_wall = 0;
 		}
 		// mark ourselves as visited
 		m->maze[m->traverse_h][m->traverse_w].visited = 1;
 		// traverse
-		m->traverse_h += nl[rand_neighbor].offset_h;
-		m->traverse_w += nl[rand_neighbor].offset_w;
+		m->traverse_h += neighbor_list[rand_neighbor].offset_h;
+		m->traverse_w += neighbor_list[rand_neighbor].offset_w;
 //		printf("moved to h=%d w=%d\n", m->traverse_h, m->traverse_w);
 	} while (1);
 }
