@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define MAZE_WIDTH 50
-#define MAZE_HEIGHT 30
+#define MAZE_WIDTH 10
+#define MAZE_HEIGHT 10
 
 typedef struct {
 	int visited;
@@ -56,18 +56,18 @@ void maze_display(maze_t *m)
 	for (i = 0; i <= MAZE_HEIGHT; ++i) {
 		for (j = 0; j <= MAZE_WIDTH; ++j) {
 			if (m->maze[i][j].top_wall > 0) {
-				printf("---");
+				printf("-----");
 			} else {
-				printf("   ");
+				printf("     ");
 			}
 		}
 		printf("\n");
-		for (k = 0; k < 1; ++k) {
+		for (k = 0; k < 2; ++k) {
 			for (j = 0; j <= MAZE_WIDTH; ++j) {
 				if (m->maze[i][j].left_wall > 0) {
-					printf("|  ");
+					printf("|    ");
 				} else {
-					printf("   ");
+					printf("     ");
 				}
 			}
 			printf("\n");
@@ -82,7 +82,7 @@ int maze_hunt_check(maze_t *m, unsigned int h, unsigned int w)
 //		printf("Found unvisited cell h=%d w=%d\n", h, w);
 		if (h > 0) {
 			// check up neighbor
-			if (m->maze[h - 1][w].visited = 1) {
+			if (m->maze[h - 1][w].visited == 1) {
 				m->traverse_h = h;
 				m->traverse_w = w;
 				m->maze[h][w].visited = 1;
@@ -92,7 +92,7 @@ int maze_hunt_check(maze_t *m, unsigned int h, unsigned int w)
 		}
 		if (w > 0) {
 			// check left neighbor
-			if (m->maze[h][w - 1].visited = 1) {
+			if (m->maze[h][w - 1].visited == 1) {
 				m->traverse_h = h;
 				m->traverse_w = w;
 				m->maze[h][w].visited = 1;
@@ -102,7 +102,7 @@ int maze_hunt_check(maze_t *m, unsigned int h, unsigned int w)
 		}
 		if (w < MAZE_WIDTH - 1) {
 			// check right neighbor
-			if (m->maze[h][w + 1].visited = 1) {
+			if (m->maze[h][w + 1].visited == 1) {
 				m->traverse_h = h;
 				m->traverse_w = w;
 				m->maze[h][w].visited = 1;
@@ -112,7 +112,7 @@ int maze_hunt_check(maze_t *m, unsigned int h, unsigned int w)
 		}
 		if (h < MAZE_HEIGHT - 1) {
 			// check down neighbor
-			if (m->maze[h + 1][w].visited = 1) {
+			if (m->maze[h + 1][w].visited == 1) {
 				m->traverse_h = h;
 				m->traverse_w = w;
 				m->maze[h][w].visited = 1;
@@ -233,7 +233,7 @@ void maze_generate(maze_t *m)
 	do {
 		// traverse until we get backed into a corner
 		maze_traverse(m);
-//		maze_display(m);
+		maze_display(m);
 		// if our hunt algorithm fails to find a cell,
 		// then we are finished.
 		if (maze_hunt(m) == 0) break;
